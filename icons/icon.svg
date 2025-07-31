@@ -1,0 +1,32 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#007bff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0056b3;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="64" cy="64" r="58" fill="url(#grad1)" stroke="#004085" stroke-width="2"/>
+  
+  <!-- Lock body -->
+  <rect x="44" y="58" width="40" height="32" rx="4" ry="4" fill="white" stroke="#004085" stroke-width="2"/>
+  
+  <!-- Lock shackle (open) -->
+  <path d="M 54 58 Q 54 40 64 40 Q 74 40 74 48" stroke="white" stroke-width="4" fill="none" stroke-linecap="round"/>
+  
+  <!-- Keyhole -->
+  <circle cx="64" cy="70" r="3" fill="#007bff"/>
+  <rect x="62" y="73" width="4" height="8" fill="#007bff"/>
+  
+  <!-- Newspaper lines -->
+  <g opacity="0.8">
+    <rect x="30" y="95" width="68" height="3" rx="1" fill="white"/>
+    <rect x="30" y="102" width="50" height="2" rx="1" fill="white"/>
+    <rect x="30" y="107" width="60" height="2" rx="1" fill="white"/>
+    <rect x="30" y="112" width="45" height="2" rx="1" fill="white"/>
+  </g>
+  
+  <!-- "Free" text -->
+  <text x="64" y="25" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="white">FREE</text>
+</svg>
