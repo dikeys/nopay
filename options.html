@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Paywall Bypass - Options</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px 20px;
+      background: #f8f9fa;
+      color: #333;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+      padding-bottom: 20px;
+      border-bottom: 2px solid #007bff;
+    }
+    
+    .header h1 {
+      margin: 0;
+      font-size: 28px;
+      color: #333;
+      font-weight: 600;
+    }
+    
+    .header p {
+      margin: 10px 0 0 0;
+      color: #666;
+      font-size: 16px;
+    }
+    
+    .section {
+      background: white;
+      border-radius: 10px;
+      padding: 30px;
+      margin-bottom: 30px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .section h2 {
+      margin: 0 0 20px 0;
+      font-size: 20px;
+      color: #333;
+      font-weight: 600;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 10px;
+    }
+    
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 15px 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .setting-row:last-child {
+      border-bottom: none;
+    }
+    
+    .setting-info {
+      flex: 1;
+    }
+    
+    .setting-title {
+      font-weight: 500;
+      margin-bottom: 5px;
+    }
+    
+    .setting-description {
+      color: #666;
+      font-size: 14px;
+    }
+    
+    .toggle-switch {
+      position: relative;
+      width: 50px;
+      height: 24px;
+      background: #ccc;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    
+    .toggle-switch.active {
+      background: #007bff;
+    }
+    
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 20px;
+      height: 20px;
+      background: white;
+      border-radius: 50%;
+      transition: transform 0.3s;
+    }
+    
+    .toggle-switch.active::after {
+      transform: translateX(26px);
+    }
+    
+    .custom-sites {
+      margin-top: 20px;
+    }
+    
+    .site-input {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    
+    .site-input input {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 14px;
+    }
+    
+    .add-btn {
+      background: #28a745;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    
+    .add-btn:hover {
+      background: #218838;
+    }
+    
+    .site-list {
+      max-height: 300px;
+      overflow-y: auto;
+      border: 1px solid #eee;
+      border-radius: 5px;
+    }
+    
+    .site-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 15px;
+      border-bottom: 1px solid #f0f0f0;
+      background: white;
+    }
+    
+    .site-item:last-child {
+      border-bottom: none;
+    }
+    
+    .site-item:hover {
+      background: #f8f9fa;
+    }
+    
+    .site-domain {
+      font-weight: 500;
+    }
+    
+    .remove-btn {
+      background: #dc3545;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    
+    .remove-btn:hover {
+      background: #c82333;
+    }
+    
+    .supported-sites {
+      columns: 2;
+      column-gap: 30px;
+      font-size: 14px;
+    }
+    
+    .supported-sites li {
+      margin-bottom: 5px;
+      break-inside: avoid;
+    }
+    
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+    
+    .stat-card {
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    
+    .stat-number {
+      font-size: 24px;
+      font-weight: 600;
+      color: #007bff;
+    }
+    
+    .stat-label {
+      color: #666;
+      font-size: 14px;
+      margin-top: 5px;
+    }
+    
+    .footer {
+      text-align: center;
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid #eee;
+      color: #666;
+      font-size: 14px;
+    }
+    
+    .footer a {
+      color: #007bff;
+      text-decoration: none;
+    }
+    
+    .footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🔓 Paywall Bypass Options</h1>
+    <p>Configure your paywall bypass settings and manage custom sites</p>
+  </div>
+
+  <div class="section">
+    <h2>General Settings</h2>
+    
+    <div class="setting-row">
+      <div class="setting-info">
+        <div class="setting-title">Enable Extension</div>
+        <div class="setting-description">Turn the paywall bypass functionality on or off</div>
+      </div>
+      <div id="enable-toggle" class="toggle-switch active"></div>
+    </div>
+    
+    <div class="setting-row">
+      <div class="setting-info">
+        <div class="setting-title">Clear Cookies Automatically</div>
+        <div class="setting-description">Automatically clear cookies when visiting supported sites</div>
+      </div>
+      <div id="auto-clear-toggle" class="toggle-switch active"></div>
+    </div>
+    
+    <div class="setting-row">
+      <div class="setting-info">
+        <div class="setting-title">Use Googlebot User Agent</div>
+        <div class="setting-description">Appear as Google's web crawler to bypass paywalls</div>
+      </div>
+      <div id="googlebot-toggle" class="toggle-switch active"></div>
+    </div>
+    
+    <div class="setting-row">
+      <div class="setting-info">
+        <div class="setting-title">Block Paywall Scripts</div>
+        <div class="setting-description">Block JavaScript that implements paywall functionality</div>
+      </div>
+      <div id="block-scripts-toggle" class="toggle-switch active"></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Custom Sites</h2>
+    <p>Add websites you want to apply paywall bypass techniques to</p>
+    
+    <div class="custom-sites">
+      <div class="site-input">
+        <input type="text" id="site-input" placeholder="Enter domain (e.g., example.com)" />
+        <button id="add-site-btn" class="add-btn">Add Site</button>
+      </div>
+      
+      <div id="custom-sites-list" class="site-list">
+        <!-- Custom sites will be populated here -->
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Statistics</h2>
+    <div class="stats">
+      <div class="stat-card">
+        <div id="supported-count" class="stat-number">40+</div>
+        <div class="stat-label">Supported Sites</div>
+      </div>
+      <div class="stat-card">
+        <div id="custom-count" class="stat-number">0</div>
+        <div class="stat-label">Custom Sites</div>
+      </div>
+      <div class="stat-card">
+        <div id="bypassed-count" class="stat-number">0</div>
+        <div class="stat-label">Bypassed Today</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Supported Sites</h2>
+    <p>The following sites are supported out of the box:</p>
+    <ul class="supported-sites">
+      <li>The New York Times</li>
+      <li>The Wall Street Journal</li>
+      <li>The Washington Post</li>
+      <li>The Economist</li>
+      <li>Financial Times</li>
+      <li>Bloomberg</li>
+      <li>Reuters</li>
+      <li>Medium</li>
+      <li>The Telegraph</li>
+      <li>Wired</li>
+      <li>The New Yorker</li>
+      <li>The Atlantic</li>
+      <li>Le Monde</li>
+      <li>Le Figaro</li>
+      <li>Die Zeit</li>
+      <li>Substack</li>
+      <li>And many more...</li>
+    </ul>
+  </div>
+
+  <div class="footer">
+    <p>
+      Made with ❤️ for the open web | 
+      <a href="https://github.com/magnolia1234/bypass-paywalls-chrome-clean" target="_blank">Source Code</a> |
+      <a href="#" id="help-link">Help & Documentation</a>
+    </p>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>
