@@ -115,7 +115,7 @@ class OptionsController {
     });
   }
 
-  async getBypassed count() {
+  async getBypassedCount() {
     try {
       const result = await chrome.storage.local.get(['bypassedToday']);
       const today = new Date().toDateString();
