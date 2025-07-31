@@ -1,5 +1,5 @@
 // Background script for Paywall Bypass Extension
-// Handles web requests, cookies, and communication with content scripts
+// Handles cookies, storage, and communication with content scripts
 
 class PaywallBypassBackground {
   constructor() {
@@ -13,14 +13,8 @@ class PaywallBypassBackground {
     // Initialize extension
     chrome.runtime.onInstalled.addListener(() => {
       this.loadSettings();
+      this.setupDeclarativeRules();
     });
-
-    // Handle web requests
-    chrome.webRequest.onBeforeSendHeaders.addListener(
-      (details) => this.handleRequest(details),
-      { urls: ["*://*/*"] },
-      ["blocking", "requestHeaders"]
-    );
 
     // Handle messages from content scripts
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -42,6 +36,72 @@ class PaywallBypassBackground {
     });
   }
 
+  async setupDeclarativeRules() {
+    // Clear existing rules
+    await chrome.declarativeNetRequest.updateDynamicRules({
+      removeRuleIds: await chrome.declarativeNetRequest.getDynamicRules().then(rules => rules.map(r => r.id))
+    });
+
+    // Add rules for supported sites
+    const rules = [];
+    let ruleId = 1;
+
+    const supportedSites = [
+      'nytimes.com', 'wsj.com', 'washingtonpost.com', 'economist.com',
+      'ft.com', 'bloomberg.com', 'reuters.com', 'medium.com',
+      'telegraph.co.uk', 'wired.com', 'newyorker.com', 'theatlantic.com'
+    ];
+
+    supportedSites.forEach(site => {
+      // Rule to modify User-Agent header
+      rules.push({
+        id: ruleId++,
+        priority: 1,
+        action: {
+          type: "modifyHeaders",
+          requestHeaders: [
+            {
+              header: "User-Agent",
+              operation: "set",
+              value: "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+            }
+          ]
+        },
+        condition: {
+          urlFilter: `*://*.${site}/*`,
+          resourceTypes: ["main_frame", "sub_frame"]
+        }
+      });
+
+      // Rule to modify Referer header
+      rules.push({
+        id: ruleId++,
+        priority: 1,
+        action: {
+          type: "modifyHeaders",
+          requestHeaders: [
+            {
+              header: "Referer",
+              operation: "set",
+              value: "https://www.google.com/"
+            }
+          ]
+        },
+        condition: {
+          urlFilter: `*://*.${site}/*`,
+          resourceTypes: ["main_frame", "sub_frame"]
+        }
+      });
+    });
+
+    // Apply the rules
+    if (rules.length > 0) {
+      await chrome.declarativeNetRequest.updateDynamicRules({
+        addRules: rules
+      });
+    }
+  }
+
   async loadSettings() {
     try {
       const result = await chrome.storage.sync.get(['enabled', 'customSites']);
@@ -59,20 +119,6 @@ class PaywallBypassBackground {
     });
   }
 
-  handleRequest(details) {
-    if (!this.enabled) return {};
-
-    const url = new URL(details.url);
-    const domain = url.hostname.toLowerCase();
-
-    // Check if this is a supported site
-    if (this.shouldBypass(domain)) {
-      return this.modifyHeaders(details, domain);
-    }
-
-    return {};
-  }
-
   shouldBypass(domain) {
     // Check against supported sites list
     const supportedSites = [
@@ -87,60 +133,6 @@ class PaywallBypassBackground {
 
     return supportedSites.some(site => domain.includes(site)) || 
            this.customSites.has(domain);
-  }
-
-  modifyHeaders(details, domain) {
-    const headers = details.requestHeaders || [];
-    
-    // Remove paywall-related headers
-    const filteredHeaders = headers.filter(header => {
-      const name = header.name.toLowerCase();
-      return !['x-forwarded-for', 'x-real-ip'].includes(name);
-    });
-
-    // Add bypass headers based on site
-    const bypassHeaders = this.getBypassHeaders(domain);
-    filteredHeaders.push(...bypassHeaders);
-
-    return { requestHeaders: filteredHeaders };
-  }
-
-  getBypassHeaders(domain) {
-    const headers = [];
-
-    // Common bypass techniques
-    if (domain.includes('nytimes.com') || domain.includes('wsj.com')) {
-      headers.push({
-        name: 'User-Agent',
-        value: 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
-      });
-      headers.push({
-        name: 'Referer',
-        value: 'https://www.google.com/'
-      });
-    } else if (domain.includes('medium.com')) {
-      headers.push({
-        name: 'User-Agent',
-        value: 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
-      });
-    } else if (domain.includes('bloomberg.com')) {
-      headers.push({
-        name: 'Referer',
-        value: 'https://www.google.com/'
-      });
-    } else {
-      // Generic bypass
-      headers.push({
-        name: 'User-Agent',
-        value: 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
-      });
-      headers.push({
-        name: 'Referer',
-        value: 'https://www.google.com/'
-      });
-    }
-
-    return headers;
   }
 
   async handleMessage(message, sender, sendResponse) {
@@ -163,12 +155,14 @@ class PaywallBypassBackground {
       case 'addCustomSite':
         this.customSites.add(message.domain);
         await this.saveSettings();
+        await this.updateCustomSiteRules();
         sendResponse({ success: true });
         break;
         
       case 'removeCustomSite':
         this.customSites.delete(message.domain);
         await this.saveSettings();
+        await this.updateCustomSiteRules();
         sendResponse({ success: true });
         break;
         
@@ -176,8 +170,50 @@ class PaywallBypassBackground {
         sendResponse({ sites: Array.from(this.customSites) });
         break;
         
+      case 'updateSettings':
+        Object.assign(this.settings, message.settings);
+        await this.saveSettings();
+        sendResponse({ success: true });
+        break;
+        
       default:
         sendResponse({ error: 'Unknown action' });
+    }
+  }
+
+  async updateCustomSiteRules() {
+    // Update declarative rules to include custom sites
+    await this.setupDeclarativeRules();
+    
+    // Add rules for custom sites
+    const customRules = [];
+    let ruleId = 1000; // Start from high number to avoid conflicts
+
+    Array.from(this.customSites).forEach(site => {
+      customRules.push({
+        id: ruleId++,
+        priority: 1,
+        action: {
+          type: "modifyHeaders",
+          requestHeaders: [
+            {
+              header: "User-Agent",
+              operation: "set",
+              value: "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+            }
+          ]
+        },
+        condition: {
+          urlFilter: `*://*.${site}/*`,
+          resourceTypes: ["main_frame", "sub_frame"]
+        }
+      });
+    });
+
+    if (customRules.length > 0) {
+      await chrome.declarativeNetRequest.updateDynamicRules({
+        addRules: customRules
+      });
     }
   }
 
@@ -205,8 +241,19 @@ class PaywallBypassBackground {
     // Clear cookies
     await this.clearSiteCookies(domain);
     
-    // Reload page
-    chrome.tabs.reload(tab.id);
+    // Inject content script to perform bypass
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => {
+          // Force reload to apply header changes
+          window.location.reload();
+        }
+      });
+    } catch (error) {
+      // Fallback to regular reload
+      chrome.tabs.reload(tab.id);
+    }
     
     // Add to bypassed sites for this session
     this.bypassedSites.add(domain);
