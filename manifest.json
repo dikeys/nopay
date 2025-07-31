@@ -1,0 +1,51 @@
+{
+  "manifest_version": 3,
+  "name": "Paywall Bypass Extension",
+  "version": "1.0.0",
+  "description": "Bypass paywalls and read articles from supported news sites",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "cookies",
+    "webRequest",
+    "webRequestBlocking",
+    "scripting"
+  ],
+  "host_permissions": [
+    "*://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*/*"],
+      "js": ["sites.js", "contentScript.js"],
+      "run_at": "document_start",
+      "all_frames": false
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Paywall Bypass",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "options_page": "options.html",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["*"],
+      "matches": ["*://*/*"]
+    }
+  ]
+}
