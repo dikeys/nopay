@@ -1,104 +1,52 @@
-// Background script for Paywall Bypass Extension
-// Handles cookies, storage, and communication with content scripts
+// Background script for Paywall Bypass Extension (Manifest V3)
+// Service worker for handling cookies, storage, and extension logic
 
 class PaywallBypassBackground {
   constructor() {
     this.enabled = true;
     this.customSites = new Set();
-    this.bypassedSites = new Set();
     this.init();
   }
 
   init() {
-    // Initialize extension
-    chrome.runtime.onInstalled.addListener(() => {
-      this.loadSettings();
-      this.setupDeclarativeRules();
+    console.log('Paywall Bypass Extension: Service worker starting...');
+    
+    // Initialize extension on install
+    chrome.runtime.onInstalled.addListener(async (details) => {
+      console.log('Extension installed/updated');
+      await this.loadSettings();
+      await this.setupContextMenu();
     });
 
-    // Handle messages from content scripts
+    // Handle messages from content scripts and popup
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       this.handleMessage(message, sender, sendResponse);
       return true; // Keep channel open for async response
     });
 
-    // Context menu for quick bypass
-    chrome.contextMenus.create({
-      id: "bypassPaywall",
-      title: "Bypass Paywall",
-      contexts: ["page"]
-    });
-
-    chrome.contextMenus.onClicked.addListener((info, tab) => {
-      if (info.menuItemId === "bypassPaywall") {
-        this.bypassCurrentSite(tab);
-      }
-    });
+    // Load settings on startup
+    this.loadSettings();
   }
 
-  async setupDeclarativeRules() {
-    // Clear existing rules
-    await chrome.declarativeNetRequest.updateDynamicRules({
-      removeRuleIds: await chrome.declarativeNetRequest.getDynamicRules().then(rules => rules.map(r => r.id))
-    });
+  async setupContextMenu() {
+    try {
+      // Remove existing menu items first
+      await chrome.contextMenus.removeAll();
+      
+      // Create context menu
+      chrome.contextMenus.create({
+        id: "bypassPaywall",
+        title: "Bypass Paywall",
+        contexts: ["page"]
+      });
 
-    // Add rules for supported sites
-    const rules = [];
-    let ruleId = 1;
-
-    const supportedSites = [
-      'nytimes.com', 'wsj.com', 'washingtonpost.com', 'economist.com',
-      'ft.com', 'bloomberg.com', 'reuters.com', 'medium.com',
-      'telegraph.co.uk', 'wired.com', 'newyorker.com', 'theatlantic.com'
-    ];
-
-    supportedSites.forEach(site => {
-      // Rule to modify User-Agent header
-      rules.push({
-        id: ruleId++,
-        priority: 1,
-        action: {
-          type: "modifyHeaders",
-          requestHeaders: [
-            {
-              header: "User-Agent",
-              operation: "set",
-              value: "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
-            }
-          ]
-        },
-        condition: {
-          urlFilter: `*://*.${site}/*`,
-          resourceTypes: ["main_frame", "sub_frame"]
+      chrome.contextMenus.onClicked.addListener((info, tab) => {
+        if (info.menuItemId === "bypassPaywall") {
+          this.bypassCurrentSite(tab);
         }
       });
-
-      // Rule to modify Referer header
-      rules.push({
-        id: ruleId++,
-        priority: 1,
-        action: {
-          type: "modifyHeaders",
-          requestHeaders: [
-            {
-              header: "Referer",
-              operation: "set",
-              value: "https://www.google.com/"
-            }
-          ]
-        },
-        condition: {
-          urlFilter: `*://*.${site}/*`,
-          resourceTypes: ["main_frame", "sub_frame"]
-        }
-      });
-    });
-
-    // Apply the rules
-    if (rules.length > 0) {
-      await chrome.declarativeNetRequest.updateDynamicRules({
-        addRules: rules
-      });
+    } catch (error) {
+      console.log('Context menu setup error (this is normal):', error.message);
     }
   }
 
@@ -107,16 +55,24 @@ class PaywallBypassBackground {
       const result = await chrome.storage.sync.get(['enabled', 'customSites']);
       this.enabled = result.enabled !== false; // Default to true
       this.customSites = new Set(result.customSites || []);
+      console.log('Settings loaded:', { enabled: this.enabled, customSites: this.customSites.size });
     } catch (error) {
       console.log('Settings loaded with defaults');
+      this.enabled = true;
+      this.customSites = new Set();
     }
   }
 
   async saveSettings() {
-    await chrome.storage.sync.set({
-      enabled: this.enabled,
-      customSites: Array.from(this.customSites)
-    });
+    try {
+      await chrome.storage.sync.set({
+        enabled: this.enabled,
+        customSites: Array.from(this.customSites)
+      });
+      console.log('Settings saved');
+    } catch (error) {
+      console.error('Error saving settings:', error);
+    }
   }
 
   shouldBypass(domain) {
@@ -124,7 +80,7 @@ class PaywallBypassBackground {
     const supportedSites = [
       'nytimes.com', 'wsj.com', 'washingtonpost.com', 'economist.com',
       'ft.com', 'bloomberg.com', 'reuters.com', 'apnews.com',
-      'latimes.com', 'bostonglobe.com', 'atlantico.fr', 'lemonde.fr',
+      'latimes.com', 'bostonglobe.com', 'lemonde.fr', 'lefigaro.fr',
       'telegraph.co.uk', 'theguardian.com', 'independent.co.uk',
       'medium.com', 'substack.com', 'wired.com', 'newyorker.com',
       'theatlantic.com', 'harpers.org', 'nationalreview.com',
@@ -136,129 +92,136 @@ class PaywallBypassBackground {
   }
 
   async handleMessage(message, sender, sendResponse) {
-    switch (message.action) {
-      case 'getStatus':
-        sendResponse({ enabled: this.enabled });
-        break;
-        
-      case 'toggle':
-        this.enabled = !this.enabled;
-        await this.saveSettings();
-        sendResponse({ enabled: this.enabled });
-        break;
-        
-      case 'clearCookies':
-        await this.clearSiteCookies(message.domain);
-        sendResponse({ success: true });
-        break;
-        
-      case 'addCustomSite':
-        this.customSites.add(message.domain);
-        await this.saveSettings();
-        await this.updateCustomSiteRules();
-        sendResponse({ success: true });
-        break;
-        
-      case 'removeCustomSite':
-        this.customSites.delete(message.domain);
-        await this.saveSettings();
-        await this.updateCustomSiteRules();
-        sendResponse({ success: true });
-        break;
-        
-      case 'getCustomSites':
-        sendResponse({ sites: Array.from(this.customSites) });
-        break;
-        
-      case 'updateSettings':
-        Object.assign(this.settings, message.settings);
-        await this.saveSettings();
-        sendResponse({ success: true });
-        break;
-        
-      default:
-        sendResponse({ error: 'Unknown action' });
-    }
-  }
-
-  async updateCustomSiteRules() {
-    // Update declarative rules to include custom sites
-    await this.setupDeclarativeRules();
+    console.log('Received message:', message.action);
     
-    // Add rules for custom sites
-    const customRules = [];
-    let ruleId = 1000; // Start from high number to avoid conflicts
-
-    Array.from(this.customSites).forEach(site => {
-      customRules.push({
-        id: ruleId++,
-        priority: 1,
-        action: {
-          type: "modifyHeaders",
-          requestHeaders: [
-            {
-              header: "User-Agent",
-              operation: "set",
-              value: "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
-            }
-          ]
-        },
-        condition: {
-          urlFilter: `*://*.${site}/*`,
-          resourceTypes: ["main_frame", "sub_frame"]
-        }
-      });
-    });
-
-    if (customRules.length > 0) {
-      await chrome.declarativeNetRequest.updateDynamicRules({
-        addRules: customRules
-      });
+    try {
+      switch (message.action) {
+        case 'getStatus':
+          sendResponse({ enabled: this.enabled });
+          break;
+          
+        case 'toggle':
+          this.enabled = !this.enabled;
+          await this.saveSettings();
+          sendResponse({ enabled: this.enabled });
+          break;
+          
+        case 'clearCookies':
+          const success = await this.clearSiteCookies(message.domain);
+          sendResponse({ success });
+          break;
+          
+        case 'addCustomSite':
+          this.customSites.add(message.domain);
+          await this.saveSettings();
+          sendResponse({ success: true });
+          break;
+          
+        case 'removeCustomSite':
+          this.customSites.delete(message.domain);
+          await this.saveSettings();
+          sendResponse({ success: true });
+          break;
+          
+        case 'getCustomSites':
+          sendResponse({ sites: Array.from(this.customSites) });
+          break;
+          
+        case 'updateSettings':
+          if (message.settings) {
+            this.enabled = message.settings.enabled !== false;
+            await this.saveSettings();
+          }
+          sendResponse({ success: true });
+          break;
+          
+        default:
+          sendResponse({ error: 'Unknown action: ' + message.action });
+      }
+    } catch (error) {
+      console.error('Error handling message:', error);
+      sendResponse({ error: error.message });
     }
   }
 
   async clearSiteCookies(domain) {
     try {
+      console.log('Clearing cookies for domain:', domain);
+      
+      // Get all cookies for the domain
       const cookies = await chrome.cookies.getAll({ domain });
+      console.log(`Found ${cookies.length} cookies for ${domain}`);
+      
+      // Remove each cookie
       for (const cookie of cookies) {
+        const url = `http${cookie.secure ? 's' : ''}://${cookie.domain}${cookie.path}`;
         await chrome.cookies.remove({
-          url: `http${cookie.secure ? 's' : ''}://${cookie.domain}${cookie.path}`,
+          url: url,
           name: cookie.name
         });
       }
-      console.log(`Cleared ${cookies.length} cookies for ${domain}`);
+      
+      // Also try without the leading dot
+      if (domain.startsWith('.')) {
+        const cleanDomain = domain.substring(1);
+        const moreCookies = await chrome.cookies.getAll({ domain: cleanDomain });
+        for (const cookie of moreCookies) {
+          const url = `http${cookie.secure ? 's' : ''}://${cookie.domain}${cookie.path}`;
+          await chrome.cookies.remove({
+            url: url,
+            name: cookie.name
+          });
+        }
+      }
+      
+      console.log(`Cleared cookies for ${domain}`);
+      return true;
     } catch (error) {
       console.error('Error clearing cookies:', error);
+      return false;
     }
   }
 
   async bypassCurrentSite(tab) {
-    if (!tab || !tab.url) return;
+    if (!tab || !tab.url) {
+      console.log('No valid tab provided');
+      return;
+    }
     
-    const url = new URL(tab.url);
-    const domain = url.hostname;
-    
-    // Clear cookies
-    await this.clearSiteCookies(domain);
-    
-    // Inject content script to perform bypass
     try {
+      const url = new URL(tab.url);
+      const domain = url.hostname;
+      
+      console.log('Bypassing site:', domain);
+      
+      // Clear cookies
+      await this.clearSiteCookies(domain);
+      
+      // Clear storage via content script
       await chrome.scripting.executeScript({
         target: { tabId: tab.id },
         func: () => {
-          // Force reload to apply header changes
-          window.location.reload();
+          try {
+            localStorage.clear();
+            sessionStorage.clear();
+            console.log('Cleared localStorage and sessionStorage');
+          } catch (e) {
+            console.log('Could not clear storage:', e);
+          }
         }
       });
+      
+      // Reload the page
+      await chrome.tabs.reload(tab.id);
+      
+      console.log('Site bypass completed for:', domain);
+      
     } catch (error) {
-      // Fallback to regular reload
-      chrome.tabs.reload(tab.id);
+      console.error('Error bypassing site:', error);
     }
-    
-    // Add to bypassed sites for this session
-    this.bypassedSites.add(domain);
   }
 }
 
-// Initialize background script
-new PaywallBypassBackground();
+// Initialize the background script
+console.log('Initializing Paywall Bypass Background Script...');
+const paywallBypass = new PaywallBypassBackground();
